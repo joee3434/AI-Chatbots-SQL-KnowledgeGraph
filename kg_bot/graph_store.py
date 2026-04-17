@@ -1,4 +1,4 @@
-from neo4j_client import Neo4jClient
+from .neo4j_client import Neo4jClient
 
 class GraphStore:
     def __init__(self, uri="bolt://localhost:7687", user="neo4j", password="password123"):

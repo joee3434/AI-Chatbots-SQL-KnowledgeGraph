@@ -1,0 +1,15 @@
+{
+  "sql_bot": [
+    {
+      "question": "show me assets in cairo",
+      "expected_sql_contains": "Cairo",
+      "expected_answer_contains": "Cairo"
+    }
+  ],
+  "kg_bot": [
+    {
+      "message": "inquire Egypt",
+      "expected_answer_contains": "Egypt"
+    }
+  ]
+}

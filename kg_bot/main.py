@@ -1,4 +1,4 @@
-from graph_store import GraphStore
+from .graph_store import GraphStore
 
 def classify_intent(text: str) -> str:
     t = text.strip().lower()

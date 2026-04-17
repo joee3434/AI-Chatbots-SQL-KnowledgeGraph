@@ -14,22 +14,27 @@ class BotState(TypedDict, total=False):
     rows: Any
     answer: str
     attempts: int
+    history: Any
 
 
 def make_llm():
-    return ChatOllama(model="llama3", temperature=0)
+    return ChatOllama(model="llama3.2:1b", temperature=0, num_predict=64)
+
+
+def format_history(history):
+    if not history:
+        return "No previous conversation."
+
+    lines = []
+    for msg in history:
+        lines.append(f"{msg['role']}: {msg['content']}")
+    return "\n".join(lines)
 
 
 def auto_fix_common_sql(sql: str) -> str:
-    """
-    Fix common LLM mistakes that cause SQLite syntax errors.
-    - Duplicate WHERE clauses
-    - Incomplete trailing WHERE/AND/OR
-    """
     s = sql.strip().rstrip(";")
     upper = s.upper()
 
-    # Fix duplicated WHERE: keep first WHERE, convert later WHEREs to AND
     if upper.count(" WHERE ") > 1:
         parts = s.split("WHERE")
         first = parts[0] + "WHERE" + parts[1]
@@ -39,7 +44,6 @@ def auto_fix_common_sql(sql: str) -> str:
         else:
             s = first
 
-    # Remove trailing incomplete tokens
     for bad_end in [" WHERE", " AND", " OR"]:
         if s.upper().endswith(bad_end):
             s = s[: -len(bad_end)].rstrip()
@@ -51,10 +55,16 @@ def generator_node(state: BotState) -> BotState:
     llm = make_llm()
     q = state["question"]
 
+    history = state.get("history", [])
+    history = history[-2:]
+    history_text = format_history(history)
+
+    user_prompt = f"Conversation history:\n{history_text}\n\nCurrent question:\n{q}"
+
     sql = llm.invoke(
         [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": q},
+            {"role": "user", "content": user_prompt},
         ]
     ).content.strip()
 
@@ -67,7 +77,6 @@ def executor_node(state: BotState) -> BotState:
     q = state["question"]
     raw_sql = state["sql"]
 
-    # Auto-fix common SQL formatting issues before validation/execution
     raw_sql = auto_fix_common_sql(raw_sql)
     state["sql"] = raw_sql
 
@@ -99,6 +108,7 @@ def should_correct(state: BotState) -> str:
 
 def corrector_node(state: BotState) -> BotState:
     llm = make_llm()
+
     fixed = llm.invoke(
         [
             {"role": "system", "content": "You fix SQL queries."},
@@ -143,7 +153,7 @@ def responder_node(state: BotState) -> BotState:
 def give_up_node(state: BotState) -> BotState:
     state["answer"] = (
         "I couldn't execute a valid query after multiple attempts. "
-        f"Last error: {state.get('error','')}"
+        f"Last error: {state.get('error', '')}"
     )
     return state
 

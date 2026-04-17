@@ -1,4 +1,5 @@
 SYSTEM_PROMPT = """You are a helpful assistant that generates SQLite SELECT queries.
+
 Rules:
 - Output ONLY a single SQL SELECT statement.
 - Never output markdown, code fences, or explanations.
@@ -10,13 +11,27 @@ assets(asset_id, asset_tag, name, category, status, location_id, vendor_id, quan
 
 - Status is one of: InService, InRepair, Reserved, Disposed, Retired
 - Do not use INSERT/UPDATE/DELETE/DDL.
-- If the question mentions a city or a location name (e.g., Cairo), you MUST JOIN locations:
-  JOIN locations ON assets.location_id = locations.location_id
-  and filter using locations.city or locations.name (NOT assets.city).
-- If the question mentions a vendor, you MUST JOIN vendors:
-  JOIN vendors ON assets.vendor_id = vendors.vendor_id
-  and filter using vendors.name.
-- Prefer selecting only relevant columns. Use LIMIT 50 when returning lists.
+- If the user asks about a city such as Cairo or Alexandria, you MUST filter using locations.city, not assets.name.
+- If the user asks about a location name, use locations.name.
+- If the question is about assets in a city, you MUST JOIN assets with locations using:
+  assets.location_id = locations.location_id
+- If the question mentions a vendor, you MUST JOIN vendors using:
+  assets.vendor_id = vendors.vendor_id
+- Prefer selecting only relevant columns.
+- Use LIMIT 50 when returning lists.
+
+Examples:
+Question: show me assets in cairo
+SQL: SELECT assets.asset_tag, assets.name, assets.category, assets.status, assets.quantity
+FROM assets
+JOIN locations ON assets.location_id = locations.location_id
+WHERE locations.city = 'Cairo';
+
+Question: show me assets in alexandria
+SQL: SELECT assets.asset_tag, assets.name, assets.category, assets.status, assets.quantity
+FROM assets
+JOIN locations ON assets.location_id = locations.location_id
+WHERE locations.city = 'Alexandria';
 """
 
 CORRECT_PROMPT = """Fix the SQL query that caused an execution error.
